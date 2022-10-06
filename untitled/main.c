@@ -35,20 +35,19 @@ int main(){
     int contador = 1;
 
 
-    if( (out = fopen("C:\\Users\\vmhug\\CLionProjects\\Projeto2ED\\main.bin","r+b")) == NULL){
+    if( (out = fopen("C:\\Users\\vmhug\\CLionProjects\\untitled\\main.bin","r+b")) == NULL){
 
-        out = fopen("C:\\Users\\vmhug\\CLionProjects\\Projeto2ED\\main.bin","w+b");
+        out = fopen("C:\\Users\\vmhug\\CLionProjects\\untitled\\main.bin","w+b");
     }
 
-    if( (insere = fopen("C:\\Users\\vmhug\\CLionProjects\\Projeto2ED\\insere.bin","r+b")) == NULL){
+    if( (insere = fopen("C:\\Users\\vmhug\\CLionProjects\\untitled\\insere.bin","r+b")) == NULL){
 
         printf("ERRO NA ABERTURA DO ARQUIVO");
-        return 1;
     }
 
-    if( (prim = fopen("C:\\Users\\vmhug\\CLionProjects\\Projeto2ED\\primario.bin","r+b")) == NULL){
+    if( (prim = fopen("C:\\Users\\vmhug\\CLionProjects\\untitled\\primario.bin","r+b")) == NULL){
 
-        prim = fopen("C:\\Users\\vmhug\\CLionProjects\\Projeto2ED\\primario.bin","w+b");
+        prim = fopen("C:\\Users\\vmhug\\CLionProjects\\untitled\\primario.bin","w+b");
         // adiciona header inicializando com -1 (desatualizado)
         int num = -1;
         fwrite(&num, sizeof(int), 1, prim);
@@ -153,9 +152,6 @@ void Inserir(FILE *insere, FILE *out, FILE *prim,indice *vet){//
         }
         contador++;
     }
-
-    free(vet);
-    return;
 }
 void BuscaPrimaria(FILE *Busca_P){//
 
