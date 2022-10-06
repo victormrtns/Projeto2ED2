@@ -1,0 +1,3 @@
+C:/Users/vmhug/CLionProjects/Projeto2ED2/cmake-build-debug/CMakeFiles/Projeto2ED2.dir
+C:/Users/vmhug/CLionProjects/Projeto2ED2/cmake-build-debug/CMakeFiles/edit_cache.dir
+C:/Users/vmhug/CLionProjects/Projeto2ED2/cmake-build-debug/CMakeFiles/rebuild_cache.dir
