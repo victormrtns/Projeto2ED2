@@ -58,7 +58,6 @@ int main(){
     while( fread(&REG, sizeof(REG), 1, insere) ){
         contador++;
     }
-    rewind(insere);
     //Aqui ele printa pra ver se ta certo
     printf("%d\n",contador);
     indice *vet;
