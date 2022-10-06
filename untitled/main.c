@@ -32,6 +32,7 @@ int main(){
 
     REGISTRO REG;
     int opcao;
+    //Inicializo o contador como 1 pra dar certo o num de posicoes
     int contador = 1;
 
 
@@ -53,12 +54,15 @@ int main(){
         fwrite(&num, sizeof(int), 1, prim);
     }
 
-
+    //Aqui esse contador vai pegar a quantidade de registros no arquivo insere
     while( fread(&REG, sizeof(REG), 1, insere) ){
         contador++;
     }
+    rewind(insere);
+    //Aqui ele printa pra ver se ta certo
     printf("%d\n",contador);
     indice *vet;
+    //Faz o malloc de todas as posicoes (6 no caso) nesse vetor
     vet  = (indice *)malloc(contador*sizeof(indice));
     rewind(insere);
 
@@ -151,6 +155,12 @@ void Inserir(FILE *insere, FILE *out, FILE *prim,indice *vet){//
             break;
         }
         contador++;
+    }
+
+
+    for(int i = 0 ;i<contador+1;i++){
+        printf("%s\n",vet[i].isbn);
+        printf("%d\n",vet[i].byteoffset);
     }
 }
 void BuscaPrimaria(FILE *Busca_P){//
