@@ -37,7 +37,6 @@ int main(){
     //Inicializo o contador como 1 pra dar certo o num de posicoes
     int contador = 1;
     char ISBN[14];
-
     if( (out = fopen("C:\\Users\\vmhug\\CLionProjects\\untitled\\main.bin","r+b")) == NULL){
 
         out = fopen("C:\\Users\\vmhug\\CLionProjects\\untitled\\main.bin","w+b");
@@ -62,20 +61,21 @@ int main(){
     }
     //Aqui ele printa pra ver se ta certo
     //printf("%d\n",contador);
-    indice *vet;
+    indice vet[contador];
     //Faz o malloc de todas as posicoes (6 no caso) nesse vetor
-    vet  = (indice *)malloc(contador*sizeof(indice));
     rewind(insere);
     int i = 0;
     //O primeiro tem que salvar dessa forma
     // ftell(out) = 0
-    vet[i].byteoffset = ftell(out);
+    //Aqui salva o primeiro byteoffset como 0
+    vet[0].byteoffset = 0;
     //Le o tamanho e passa pro vetor
-    fread(&tamanho,sizeof(int),1,out);
+    //fread(&tamanho,sizeof(int),1,out);
     //Le o isbn e passa pro vetor
-    fread(&vet[i].isbn,sizeof(char),13,out);
+    //fread(&vet[i].isbn,sizeof(char),13,out);
+    //strcat(vet[i].isbn,"\0");
     //Para ler o proximo tamanho e isbn, da um fseek no tamanho que resta.
-    fseek(out,tamanho - sizeof(ISBN)+1,SEEK_CUR);
+    //fseek(out,tamanho - sizeof(ISBN)+1,SEEK_CUR);
 
 //    printf("%d\n",tamanho);
 //    printf("%d\n",vet[i].byteoffset);
@@ -87,12 +87,25 @@ int main(){
     //A partir daqui foi automatizado pra passar no vetor
     //Ele salva do main no vetor direito, mas na hora de passar pra funcao insere ponteiro ta se perdendo (Testem pra ver)
     while (fread(&tamanho,sizeof(int),1,out)){
-        contador++;
-        vet[i].byteoffset = ftell(out) - sizeof(int);
-        fread(vet[i].isbn,sizeof(char),13,out);
-        fseek(out,tamanho - sizeof(ISBN)+1,SEEK_CUR);
-        printf("%s\n",vet[i].isbn);
-        printf("%d\n",vet[i].byteoffset);
+        if(i>0) {
+            vet[i].byteoffset = ftell(out) - sizeof(int);
+            //Salva em uma var auxiliar e depois copia para o vet[i].isbn para n bugar
+            fread(&ISBN, sizeof(char), 13, out);
+            strcpy(vet[i].isbn,ISBN);
+            fseek(out, tamanho - sizeof(ISBN) + 1, SEEK_CUR);
+            printf("%s\n", vet[i].isbn);
+            printf("%d\n", vet[i].byteoffset);
+        }
+        else{
+            //Se for i = 0 ele salva so isso pq o byteoffset é 0 e foi setado la em ima
+            // ;
+            fread(&ISBN, sizeof(char), 13, out);
+            strcpy(vet[i].isbn,ISBN);
+            fseek(out, tamanho - sizeof(ISBN) + 1, SEEK_CUR);
+            printf("%s\n", vet[i].isbn);
+            printf("%d\n", vet[i].byteoffset);
+        }
+        i++;
     }
     rewind(out);
 
@@ -168,6 +181,7 @@ void Inserir(FILE *insere, FILE *out, FILE *prim,indice* vet){//
 
             // apos insercao no main, insere ISBN + byteoffset no vetor (indice)
             sprintf(vet[contador].isbn, "%s", aux);
+            strcat(vet[contador].isbn,"\0");
             vet[contador].byteoffset = byteoffset;
             printf("%s\n",vet[contador].isbn);
             printf("%d\n",vet[contador].byteoffset);
