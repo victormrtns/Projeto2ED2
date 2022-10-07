@@ -15,7 +15,7 @@ typedef struct vetor_indices_arq_primario{
 } indice;
 
 //------------------------------------------------FUNÇÔES------------------------------------------
-void Inserir(FILE *insere, FILE *out, FILE *prim,indice *vet);
+void Inserir(FILE *insere, FILE *out, FILE *prim,indice* vet);
 void BuscaPrimaria(FILE *Busca_P);
 void CarregarIndice();
 void RecriarIndice();
@@ -30,11 +30,13 @@ int main(){
     FILE *out;			// ponteiro arq main.bin (guarda todos os dados)
     FILE *prim;			// ponteiro arq primario.bin (indice com ISBNs + byteoffset)
 
+
+    int tamanho;
     REGISTRO REG;
     int opcao;
     //Inicializo o contador como 1 pra dar certo o num de posicoes
     int contador = 1;
-
+    char ISBN[14];
 
     if( (out = fopen("C:\\Users\\vmhug\\CLionProjects\\untitled\\main.bin","r+b")) == NULL){
 
@@ -50,7 +52,7 @@ int main(){
 
         prim = fopen("C:\\Users\\vmhug\\CLionProjects\\untitled\\primario.bin","w+b");
         // adiciona header inicializando com -1 (desatualizado)
-        int num = -1;
+        int num = 1;
         fwrite(&num, sizeof(int), 1, prim);
     }
 
@@ -59,11 +61,41 @@ int main(){
         contador++;
     }
     //Aqui ele printa pra ver se ta certo
-    printf("%d\n",contador);
+    //printf("%d\n",contador);
     indice *vet;
     //Faz o malloc de todas as posicoes (6 no caso) nesse vetor
     vet  = (indice *)malloc(contador*sizeof(indice));
     rewind(insere);
+    int i = 0;
+    //O primeiro tem que salvar dessa forma
+    // ftell(out) = 0
+    vet[i].byteoffset = ftell(out);
+    //Le o tamanho e passa pro vetor
+    fread(&tamanho,sizeof(int),1,out);
+    //Le o isbn e passa pro vetor
+    fread(&vet[i].isbn,sizeof(char),13,out);
+    //Para ler o proximo tamanho e isbn, da um fseek no tamanho que resta.
+    fseek(out,tamanho - sizeof(ISBN)+1,SEEK_CUR);
+
+//    printf("%d\n",tamanho);
+//    printf("%d\n",vet[i].byteoffset);
+//    printf("%s\n",vet[i].isbn);
+//    printf("%d\n",ftell(out));
+//    printf("%d\n",tamanho);
+
+
+    //A partir daqui foi automatizado pra passar no vetor
+    //Ele salva do main no vetor direito, mas na hora de passar pra funcao insere ponteiro ta se perdendo (Testem pra ver)
+    while (fread(&tamanho,sizeof(int),1,out)){
+        contador++;
+        vet[i].byteoffset = ftell(out) - sizeof(int);
+        fread(vet[i].isbn,sizeof(char),13,out);
+        fseek(out,tamanho - sizeof(ISBN)+1,SEEK_CUR);
+        printf("%s\n",vet[i].isbn);
+        printf("%d\n",vet[i].byteoffset);
+    }
+    rewind(out);
+
 
     do{
         printf("\n MENU\n 0-Sair\n 1-Inserir \n 2-BuscaPrimaria\n 3-BuscaSecundaria \n 4-CarregarArquivos\n Opcao: ");
@@ -74,7 +106,7 @@ int main(){
                 break;
             }
             case 1:{
-                Inserir(insere, out, prim,vet);
+                Inserir(insere, out, prim,&vet);
                 break;
             }
             case 2:{
@@ -97,7 +129,6 @@ int main(){
         }
     }while(opcao!=0);
 
-    free(vet);
     fclose(out);
     fclose(insere);
     fclose(prim);
@@ -106,11 +137,12 @@ int main(){
 
     return 0;
 }
-void Inserir(FILE *insere, FILE *out, FILE *prim,indice *vet){//
+void Inserir(FILE *insere, FILE *out, FILE *prim,indice* vet){//
 
     int tam_registro=0, contador=0;
     char aux[14], registro[125];
     REGISTRO REG;
+
 
     int byteoffset;
 
@@ -137,6 +169,8 @@ void Inserir(FILE *insere, FILE *out, FILE *prim,indice *vet){//
             // apos insercao no main, insere ISBN + byteoffset no vetor (indice)
             sprintf(vet[contador].isbn, "%s", aux);
             vet[contador].byteoffset = byteoffset;
+            printf("%s\n",vet[contador].isbn);
+            printf("%d\n",vet[contador].byteoffset);
 
 // -------------- ordenar vetor quando for inserir, verificacao de quando fechar descarregar vetor para arq primario ----------------------- //
 
@@ -156,11 +190,13 @@ void Inserir(FILE *insere, FILE *out, FILE *prim,indice *vet){//
         contador++;
     }
 
+    //Nesse print mostra que ele so ta salvando o ultimo certo, de resto ta se perdendo na memoria
+for(int i = 0;i<contador+1;i++){
+    printf("%s\n",vet[i].isbn);
+    printf("%d\n",vet[i].byteoffset);
 
-    for(int i = 0 ;i<contador+1;i++){
-        printf("%s\n",vet[i].isbn);
-        printf("%d\n",vet[i].byteoffset);
-    }
+}
+
 }
 void BuscaPrimaria(FILE *Busca_P){//
 
