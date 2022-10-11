@@ -18,7 +18,7 @@ typedef struct vetor_indices_arq_primario{
 void Inserir(FILE *insere, FILE *out, FILE *prim, indice* vet, int *tam_vet_carregar);
 void BuscaPrimaria(FILE *Busca_P,FILE *out,FILE *prim,indice *vet,int tam_vetor);
 void CarregarIndice(FILE *prim, indice *vet, int *tam_vet);
-void RecriarIndice(FILE *out, FILE *prim, indice *vet, int tam_vet);
+void RecriarIndice(FILE *prim, indice *vet, int tam_vet);
 void BuscaSecundaria(FILE *Busca_S);
 void CarregarArquivos(FILE *insere, FILE *Busca_P, FILE *Busca_S);
 
@@ -31,7 +31,7 @@ int main(){
     FILE *Busca_S;
 
     int tamanho;
-    int tam_vet_carregar;		// parametro funcao CarregarIndice
+    int tam_vet_carregar;	// parametro funcao CarregarIndice
     REGISTRO REG;
     int opcao;
 
@@ -97,16 +97,16 @@ int main(){
     }
     rewind(out);
 
-// ----- verificacao status do header --> atualizado = 1 ou desatualizado = 0 (quando fecha e abre de novo) no arq primario -----
+// verificacao status do header --> atualizado = 1 ou desatualizado = 0 (quando fecha e abre de novo) no arq primario
 
     int num;
     rewind(prim);
     fread(&num, sizeof(int), 1, prim);		//Le header pra ver se ta atualizado ou nao
     printf("header (num) = %d e i (contador do vet) = %d\n", num, i);
 
-// se header desatualizado --> recria arq primario.bin a partir do main -->
+// se header desatualizado --> recria arq primario.bin a partir do main
     if(num == 0){
-        RecriarIndice(out, prim, vet, i);
+        RecriarIndice(prim,vet, i);
     }
 
     do{
@@ -167,12 +167,12 @@ void Inserir(FILE *insere, FILE *out, FILE *prim, indice* vet, int *tam_vet_carr
 
     rewind(insere);
 
-    // quando for inserir um registro, muda header = 0 - desatualizado
+    // quando for inserir um registro, muda header = 0 -> desatualizado
     rewind(prim);
     int num = 0;
     fwrite(&num, sizeof(int), 1, prim);
+    printf("atualizou header = %d no primario (entrou inserir)\n", num);
     rewind(prim);
-    printf("atualizou header = %d no primario (entrou inserir)\n",num);
 
     // le no insere.bin registro a inserir e escreve no final do arq main string formatada com todos os dados
     while( fread(&REG, sizeof(REG), 1, insere) ){
@@ -190,6 +190,12 @@ void Inserir(FILE *insere, FILE *out, FILE *prim, indice* vet, int *tam_vet_carr
             fwrite(&tam_registro, sizeof(int), 1, out);
             fwrite(registro, sizeof(char), tam_registro, out);
 
+            // fecha para conseguir salvar o que escreveu no arq (fica no buffer e só salva realmente quando fecha) e já abre de novo para continuar fluxo
+            fclose(out);
+            if( (out = fopen("C:\\Users\\vmhug\\CLionProjects\\untitled\\main.bin","r+b")) == NULL){
+                printf("erro abertura arq main.bin dentro funcao insere");
+            }
+
             // apos insercao no main, insere ISBN + byteoffset no vetor (indice)
             sprintf(vet[contador].isbn, "%s", aux);
             strcat(vet[contador].isbn,"\0");
@@ -203,6 +209,16 @@ void Inserir(FILE *insere, FILE *out, FILE *prim, indice* vet, int *tam_vet_carr
             aux[0] = '/';
             fseek(insere, (contador)*sizeof(REG), SEEK_SET);
             fwrite(&aux, sizeof(REG.ISBN), 1, insere);
+            // fecha para conseguir salvar o que escreveu no arq (fica no buffer e só salva realmente quando fecha) e já abre de novo para continuar fluxo
+            fclose(insere);
+            if( (insere = fopen("C:\\Users\\vmhug\\CLionProjects\\untitled\\insere.bin","r+b")) == NULL){
+                printf("erro abertura arq insere.bin dentro funcao insere");
+            }
+
+            fclose(prim);
+            if( (prim = fopen("C:\\Users\\vmhug\\CLionProjects\\untitled\\primario.bin","r+b")) == NULL){
+                printf("erro abertura arq primario.bin dentro funcao insere");
+            }
 
             // apos insercao nos arqs main e primario, insere/atualiza arq secundario
             // tem q escrrever em 2 arqs -->
@@ -302,12 +318,11 @@ void CarregarIndice(FILE *prim, indice *vet, int *tam_vet){
     }
 }
 
-void RecriarIndice(FILE *out, FILE *prim, indice *vet, int tam_vet){		// abre arq main.bin para leitura, recupera os dados, insere no vetor, escreve no arq primario
-
+void RecriarIndice(FILE *prim,indice *vet, int tam_vet){	// abre arq main.bin para leitura, recupera os dados, insere no vetor, escreve no arq primario
     int header = 1; // atualizado
     int i;
-
     rewind(prim);
+
     fwrite(&header, sizeof(int), 1, prim);		// adiciona header = 1 (atualizado)
 
     // ja recebe vetor atualizado com os dados do main.bin (ISBN + byteoffset) --> feito no main()
@@ -318,7 +333,10 @@ void RecriarIndice(FILE *out, FILE *prim, indice *vet, int tam_vet){		// abre ar
         fwrite(vet[i].isbn, sizeof(vet[i].isbn), 1, prim);
         fwrite(&vet[i].byteoffset, sizeof(int), 1, prim);
     }
-
+    fclose(prim);
+    if( (prim = fopen("C:\\Users\\vmhug\\CLionProjects\\untitled\\primario.bin","r+b")) == NULL){
+            printf("ta sertu aqui na recriar indice");
+    }
 }
 
 void BuscaSecundaria(FILE *Busca_S){}
