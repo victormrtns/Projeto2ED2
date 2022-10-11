@@ -15,9 +15,10 @@ typedef struct vetor_indices_arq_primario{
 } indice;
 
 //------------------------------------------------FUNÇÔES------------------------------------------
-void Inserir(FILE *insere, FILE *out, FILE *prim, indice* vet);
+void Inserir(FILE *insere, FILE *out, FILE *prim, indice* vet, int *tam_vet_carregar);
 void BuscaPrimaria(FILE *Busca_P,FILE *out,FILE *prim,indice *vet,int tam_vetor);
-void CarregarIndice(FILE *prim,indice *vet);
+void CarregarIndice(FILE *prim, indice *vet, int *tam_vet);
+void RecriarIndice(FILE *out, FILE *prim, indice *vet, int tam_vet);
 void BuscaSecundaria(FILE *Busca_S);
 void CarregarArquivos(FILE *insere, FILE *Busca_P, FILE *Busca_S);
 
@@ -28,8 +29,9 @@ int main(){
     FILE *prim;			// ponteiro arq primario.bin (indice com ISBNs + byteoffset)
     FILE *Busca_P;
     FILE *Busca_S;
-    int num;
+
     int tamanho;
+    int tam_vet_carregar;		// parametro funcao CarregarIndice
     REGISTRO REG;
     int opcao;
 
@@ -47,9 +49,16 @@ int main(){
 
         prim = fopen("C:\\Users\\vmhug\\CLionProjects\\untitled\\primario.bin","w+b");
 
-        num = 1;	// adiciona header inicializando com 1 (atualizado)
+        int num = 1;	// adiciona header inicializando com 1 (atualizado)
         fwrite(&num, sizeof(int), 1, prim);
-        printf("%d\n",num);
+    }
+
+    if ((Busca_P = fopen("C:\\Users\\vmhug\\CLionProjects\\untitled\\busca_p.bin","r+b")) == NULL){
+        printf("ERRO NA ABERTURA DO ARQUIVO busca_p.bin");
+    }
+
+    if ((Busca_S = fopen("C:\\Users\\vmhug\\CLionProjects\\untitled\\busca_s.bin","r+b")) == NULL){
+        printf("ERRO NA ABERTURA DO ARQUIVO busca_s.bin");
     }
 
 
@@ -58,7 +67,6 @@ int main(){
     while( fread(&REG, sizeof(REG), 1, insere) ){
         contador++;
     }
-    //printf("%d\n",contador);		// printa pra ver se ta certo
 
     // cria vetor com a quant de registros que podem ser inseridos a partir do arq insere.bin
     indice vet[contador];		// logica com vet estatico
@@ -68,9 +76,7 @@ int main(){
     int i = 0;
     vet[0].byteoffset = 0;		// salva primeiro byteoffset = 0
 
-    // quando abre o programa de novo, salva no vetor todos os registros ja inseridos ( a partir do main )
-
-    // salva do main no vetor direito, mas na hora de passar pra funcao insere ponteiro ta se perdendo (Testem pra ver)
+    // quando abre o programa, salva no vetor todos os registros ja inseridos ( a partir do main ), para continuar usando vetor atualizado na funcao insere
     while (fread(&tamanho, sizeof(int), 1, out)){
         if(i>0) {
             vet[i].byteoffset = ftell(out) - sizeof(int);
@@ -90,27 +96,18 @@ int main(){
         i++;
     }
     rewind(out);
-    //Le o header pra ver se ta atualizado ou nao
 
-    fread(&num, sizeof(int), 1, prim);
-    printf("%d\n",num);
-    i = 0;
-//    if(num ==0){
-//        num = 1;	// adiciona header inicializando com 1 (atualizado)
-//        rewind(prim);
-//        //Quando ele entra nesse if, significa que a gnt vai atualizar ele com o vetor dentro da main
-//        fwrite(&num, sizeof(int), 1, prim);
-//        printf("%d\n",num);
-//        while(i<=2) {
-//            fseek(prim, 0, SEEK_END);
-//            fwrite(&vet[i].isbn, sizeof(char), 13, prim);
-//            fseek(prim, 0, SEEK_END);
-//            fwrite(&vet[i].byteoffset, sizeof(int), 1, prim);
-//            printf("%d\n", num);
-//
-//            i++;
-//        }
-//    }
+// ----- verificacao status do header --> atualizado = 1 ou desatualizado = 0 (quando fecha e abre de novo) no arq primario -----
+
+    int num;
+    rewind(prim);
+    fread(&num, sizeof(int), 1, prim);		//Le header pra ver se ta atualizado ou nao
+    printf("header (num) = %d e i (contador do vet) = %d\n", num, i);
+
+// se header desatualizado --> recria arq primario.bin a partir do main -->
+    if(num == 0){
+        RecriarIndice(out, prim, vet, i);
+    }
 
     do{
         printf("\n MENU\n 0-Sair\n 1-Inserir \n 2-BuscaPrimaria\n 3-BuscaSecundaria \n 4-CarregarArquivos\n Opcao: ");
@@ -118,14 +115,15 @@ int main(){
 
         switch(opcao){
             case 0:{
+                CarregarIndice(prim, vet, &tam_vet_carregar);
                 break;
             }
             case 1:{
-                Inserir(insere, out, prim, vet);
+                Inserir(insere, out, prim, vet, &tam_vet_carregar);
                 break;
             }
             case 2:{
-                BuscaPrimaria(Busca_P,out,prim,vet,contador);
+                BuscaPrimaria(Busca_P, out, prim, vet, contador);
                 break;
             }
             case 3:{
@@ -133,7 +131,7 @@ int main(){
                 break;
             }
             case 4:{
-                CarregarArquivos(insere,Busca_P,Busca_S);
+                CarregarArquivos(insere, Busca_P, Busca_S);
                 break;
             }
             default:{
@@ -143,30 +141,39 @@ int main(){
 
         }
     }while(opcao!=0);
+
     fclose(out);
     fclose(insere);
     fclose(prim);
-/*	fclose(Busca_P);
-	fclose(Busca_S);*/
+    fclose(Busca_P);
+    fclose(Busca_S);
 
     return 0;
 }
 
-void Inserir(FILE *insere, FILE *out, FILE *prim,indice* vet){//
+// funcao q compara dois valores do vetor dentro do qsort para ordenar vetor
+int comparador(const void *a, const void *b){
+    return ( *(int*)a - *(int*)b );
+}
+
+void Inserir(FILE *insere, FILE *out, FILE *prim, indice* vet, int *tam_vet_carregar){//
 
     int tam_registro=0, contador=0;
     char aux[14], registro[125];
     REGISTRO REG;
 
     int byteoffset;
+    int i;
 
     rewind(insere);
-    rewind(out);
+
+    // quando for inserir um registro, muda header = 0 - desatualizado
     rewind(prim);
     int num = 0;
     fwrite(&num, sizeof(int), 1, prim);
     rewind(prim);
-    printf("%d\n",num);
+    printf("atualizou header = %d no primario (entrou inserir)\n",num);
+
     // le no insere.bin registro a inserir e escreve no final do arq main string formatada com todos os dados
     while( fread(&REG, sizeof(REG), 1, insere) ){
         sprintf(aux, "%s", REG.ISBN);
@@ -187,10 +194,10 @@ void Inserir(FILE *insere, FILE *out, FILE *prim,indice* vet){//
             sprintf(vet[contador].isbn, "%s", aux);
             strcat(vet[contador].isbn,"\0");
             vet[contador].byteoffset = byteoffset;
-            printf("inserido: %s - ",vet[contador].isbn);
-            printf("%d\n",vet[contador].byteoffset);
 
-// -------------- ordenar vetor quando for inserir, verificacao de quando fechar descarregar vetor para arq primario ----------------------- //
+            // ordena vetor
+            qsort(vet, contador+1, sizeof(vet[0]), comparador);
+            *tam_vet_carregar = contador+1;			// para passar tam do vetor hora que for descarregar no arq primario (funcao CarregarIndice)
 
             //marca o registro como lido no insere.bin
             aux[0] = '/';
@@ -206,14 +213,9 @@ void Inserir(FILE *insere, FILE *out, FILE *prim,indice* vet){//
         }
         contador++;
     }
-
-    //Nesse print mostra que ele so ta salvando o ultimo certo, de resto ta se perdendo na memoria
-    for(int i = 0;i<contador+1;i++){
-        printf("isbn: %s - offset: %d\n", vet[i].isbn, vet[i].byteoffset);
-    }
-
 }
-void BuscaPrimaria(FILE *Busca_P,FILE *out,FILE *prim,indice *vet,int tam_vetor){//
+
+void BuscaPrimaria(FILE *Busca_P, FILE *out, FILE *prim, indice *vet, int tam_vetor){//
 
     char aux[14],temp[14];
     int tam_registro,i=0,flag=0;
@@ -227,11 +229,11 @@ void BuscaPrimaria(FILE *Busca_P,FILE *out,FILE *prim,indice *vet,int tam_vetor)
     fread(&flag, sizeof(int), 1,prim);// le a flag para saber se a flag ta atualizado ou desatualizado
 
     if(flag==-1){
-        CarregarIndice(prim,vet);// se desatualizzado , carrega o indice no arquivo
+        CarregarIndice(prim, vet, &tam_vetor);// se desatualizzado , carrega o indice no arquivo
     }
     if(flag==-1 && vet[0].byteoffset==-1){
         //RecriarIndice(out,prim,vet);// recria o indice
-        CarregarIndice(prim,vet); // carrega o indice reciado para a memoria
+        CarregarIndice(prim, vet, &tam_vetor); // carrega o indice reciado para a memoria
     }
 
 //	printf("Chave que vamos buscar: %s\n",sizeof(vet[i].isbn));*/
@@ -260,10 +262,10 @@ void BuscaPrimaria(FILE *Busca_P,FILE *out,FILE *prim,indice *vet,int tam_vetor)
 
             fseek(out,vet[i].byteoffset,SEEK_SET);//posiciona o ponteiro do arquivo para byoffset do registro encontrado
 
-            fread(&tam_registro,sizeof(int),1,out);//le o tamanho do registro
+            fread(&tam_registro, sizeof(int), 1, out);//le o tamanho do registro
             printf("byteoffset: %d\n",vet[i].byteoffset);
 
-            fread(&registro,tam_registro, 1,out);//le o registro
+            fread(&registro, tam_registro, 1, out);//le o registro
             printf("registro: %s",registro);
 
             aux[0]='/';
@@ -277,20 +279,47 @@ void BuscaPrimaria(FILE *Busca_P,FILE *out,FILE *prim,indice *vet,int tam_vetor)
 
     }
 
-
     return;
 }
 
-void CarregarIndice(FILE *prim,indice *vet){
+void CarregarIndice(FILE *prim, indice *vet, int *tam_vet){
 
-    int i=0,flag=0;//Coloca a flag pra atualizado,qual o valor de ATUALIZADO(0,1?)
+    int i, header=1;
 
+// -----------  FAZER VERIFICACAO CASO CHAME FUNCAO SEM ENTRAR NO INSERE ------------- //
+
+    // reposiciona pro inicio do arq primario.bin e pula espaco do header para comecar a inserir
     rewind(prim);
 
-    fwrite(&flag, sizeof(int), 1,prim);
+    // atualiza header para 1 = atualizado
+    fwrite(&header, sizeof(int), 1, prim);
 
+    // escreve o que esta no vetor no arq primario apos heder
+    for(i=0; i<*tam_vet; i++){
+
+        fwrite(vet[i].isbn, sizeof(vet[i].isbn), 1, prim);
+        fwrite(&vet[i].byteoffset, sizeof(int), 1, prim);
+    }
 }
 
+void RecriarIndice(FILE *out, FILE *prim, indice *vet, int tam_vet){		// abre arq main.bin para leitura, recupera os dados, insere no vetor, escreve no arq primario
+
+    int header = 1; // atualizado
+    int i;
+
+    rewind(prim);
+    fwrite(&header, sizeof(int), 1, prim);		// adiciona header = 1 (atualizado)
+
+    // ja recebe vetor atualizado com os dados do main.bin (ISBN + byteoffset) --> feito no main()
+    qsort(vet, tam_vet, sizeof(vet[0]), comparador); 	// ordena vetor
+
+    for(i=0; i<tam_vet; i++){
+        printf("isbn: %d - byteoffset: %d \n", vet[i].isbn, vet[i].byteoffset);
+        fwrite(vet[i].isbn, sizeof(vet[i].isbn), 1, prim);
+        fwrite(&vet[i].byteoffset, sizeof(int), 1, prim);
+    }
+
+}
 
 void BuscaSecundaria(FILE *Busca_S){}
 
